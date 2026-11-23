@@ -15,7 +15,7 @@
     }
   },
   "postCreateCommand": "npm ci --no-audit --no-fund",
-  "postStartCommand": "nohup npm start > /tmp/server.log 2>&1 &",
+  "postStartCommand": "setsid nohup npm start > /tmp/server.log 2>&1 < /dev/null &",
   "features": {
     "ghcr.io/devcontainers/features/sshd:1": {
       "version": "latest"

@@ -1,0 +1,12 @@
+{
+  "name": "Survive The Island server",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "containerEnv": {
+    "PORT": "3001",
+    "CORS_ORIGINS": "https://survive-the-island-rho.vercel.app"
+  },
+  "forwardPorts": [3001],
+  "portsAttributes": { "3001": { "label": "game server", "onAutoForward": "silent" } },
+  "postCreateCommand": "npm ci --no-audit --no-fund",
+  "postStartCommand": "nohup npm start > /tmp/server.log 2>&1 &"
+}

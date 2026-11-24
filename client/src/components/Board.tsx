@@ -5,6 +5,7 @@ import { HEX_SIZE, hexPoints, parse, toPixel } from '../../../shared/hex';
 import { aboard, type GameState, type Terrain } from '../../../shared/game';
 import { BoatSprite, CreatureSprite, EFFECT_LABEL, EggSprite, ExplorerPawn, PiranhaSprite } from './Art';
 import { ICON } from './Icons';
+import { useSettings } from '../settings';
 
 const HP = hexPoints(HEX_SIZE);
 const HP_IN = hexPoints(HEX_SIZE - 3);
@@ -193,6 +194,11 @@ export interface BoardProps {
 
 export function Board(p: BoardProps) {
   const { g, me, colors, targets, selected, camera, reduced } = p;
+  // "Low visual effects" (auto-enabled on slow machines) drops SVG blur/glow filters and looping animations,
+  // which are the main cost on old integrated GPUs.
+  const { lowFx } = useSettings();
+  const calm = reduced || lowFx;
+  const F = (id: string) => (lowFx ? undefined : `url(#${id})`);
   const svgRef = useRef<SVGSVGElement>(null);
   // camera smoothing
   const [view, setView] = useState(camera);
@@ -317,13 +323,13 @@ export function Board(p: BoardProps) {
         <pattern id="caustic" width="200" height="200" patternUnits="userSpaceOnUse">
           <path d="M0 40 Q50 14 100 40 T200 40 M0 140 Q50 114 100 140 T200 140 M-20 90 Q30 70 80 92 T180 88" stroke="#ffffff" strokeOpacity=".07" strokeWidth="3" fill="none" />
           <path d="M20 20 l10 4 M140 70 l12 3 M60 170 l10 -3 M170 160 l8 4" stroke="#d6f6ff" strokeOpacity=".22" strokeWidth="1.5" strokeLinecap="round" />
-          {!reduced && <animateTransform attributeName="patternTransform" type="translate" from="0 0" to="200 100" dur="40s" repeatCount="indefinite" />}
+          {!calm && <animateTransform attributeName="patternTransform" type="translate" from="0 0" to="200 100" dur="40s" repeatCount="indefinite" />}
         </pattern>
         <clipPath id="boardClip"><rect x="-530" y="-410" width="1060" height="820" rx="34" /></clipPath>
       </defs>
       {/* the table the board rests on */}
       <rect x="-4000" y="-4000" width="8000" height="8000" fill="url(#woodTable)" />
-      <rect x="-560" y="-420" width="1120" height="880" rx="44" fill="#000" opacity=".55" filter="url(#blur18)" />
+      {!lowFx && <rect x="-560" y="-420" width="1120" height="880" rx="44" fill="#000" opacity=".55" filter={F("blur18")} />}
       {/* board thickness, frame, sea */}
       <rect x="-546" y="-424" width="1092" height="866" rx="42" fill="#2b1608" />
       <rect x="-546" y="-426" width="1092" height="852" rx="42" fill="url(#frameWood)" stroke="#3b1f0a" strokeWidth="3" />
@@ -334,11 +340,11 @@ export function Board(p: BoardProps) {
         {/* sea-chart rhumb lines */}
         <g stroke="#bfe9ff" strokeOpacity=".06" strokeWidth="1.2">{Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * Math.PI * 2; return <line key={i} x1="0" y1="0" x2={Math.cos(a) * 900} y2={Math.sin(a) * 900} />; })}</g>
         {/* shallow lagoon around whatever island is left: it shrinks as the island sinks */}
-        <g filter="url(#blur18)" opacity=".75">
+        {!lowFx && <g filter={F("blur18")} opacity=".75">
           {tiles.filter(t => !t.sunk).map(t => { const c = toPixel(t.key); return <polygon key={t.key} points={HP_LAGOON} transform={`translate(${c.x},${c.y})`} fill="#3fd0dd" />; })}
           {g.safe.map(k => { const c = toPixel(k); return <circle key={k} cx={c.x} cy={c.y} r="58" fill="#3fd0dd" />; })}
-        </g>
-        <rect x="-530" y="-410" width="1060" height="820" fill="url(#caustic)" />
+        </g>}
+        {!lowFx && <rect x="-530" y="-410" width="1060" height="820" fill="url(#caustic)" />}
       </g>
       {/* sea hexes (printed grid) */}
       {[...g.sea, ...tiles.filter(t => t.sunk).map(t => t.key)].filter(k => !g.volcanoes.includes(k)).map(k => {
@@ -349,20 +355,20 @@ export function Board(p: BoardProps) {
             <polygon points={HP_SCALE(0.96)} fill="#ffffff01" stroke="#e0f7ff" strokeOpacity=".13" strokeWidth="1.2" />
             {danger && <g pointerEvents="none">
               <circle r="26" fill="#ff3b3b" opacity=".1" />
-              <circle r="24" fill="none" stroke="#ff6b6b" strokeWidth="2" strokeDasharray="4 5" opacity=".7">{!reduced && <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="14s" repeatCount="indefinite" />}</circle>
+              <circle r="24" fill="none" stroke="#ff6b6b" strokeWidth="2" strokeDasharray="4 5" opacity=".7">{!calm && <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="14s" repeatCount="indefinite" />}</circle>
             </g>}
             {(hash(k) % 4 === 0) && <path d="M-10 4 q5 -4 10 0 t10 0" stroke="#e0f7ff" strokeWidth="1.6" fill="none" strokeLinecap="round" className="anim-glint" style={{ animationDelay: `${hash(k) % 7}s` }} />}
           </g>
         );
       })}
       {/* surf foam hugging the coastline */}
-      <g filter="url(#blur2)" pointerEvents="none">
+      {!lowFx && <g filter={F("blur2")} pointerEvents="none">
         {tiles.filter(t => !t.sunk).map(t => { const c = toPixel(t.key); return <polygon key={t.key} points={HP_FOAM} transform={`translate(${c.x},${c.y + 3})`} fill="none" stroke="#f0fdff" strokeWidth="5" strokeOpacity=".55" />; })}
-      </g>
+      </g>}
       {/* soft tile shadows on the water */}
-      <g filter="url(#blur5)" opacity=".5" pointerEvents="none">
+      {!lowFx && <g filter={F("blur5")} opacity=".5" pointerEvents="none">
         {tiles.filter(t => !t.sunk).map(t => { const c = toPixel(t.key); return <polygon key={t.key} points={HP} transform={`translate(${c.x + 7},${c.y + 9})`} fill="#002338" />; })}
-      </g>
+      </g>}
       {/* safe islands */}
       {g.safe.map(k => {
         const c = toPixel(k);
@@ -370,9 +376,9 @@ export function Board(p: BoardProps) {
         const sx = c.x < 0 ? -1 : 1, sy = c.y < 0 ? -1 : 1;
         return (
           <g key={`safe${k}`} transform={`translate(${c.x},${c.y})`} onClick={click(() => p.onHex(k))} style={{ cursor: 'pointer' }}>
-            <circle r="40" fill="#7dd3fc" opacity=".22">{!reduced && <animate attributeName="r" values="36;46;36" dur="3s" repeatCount="indefinite" />}</circle>
+            <circle r="40" fill="#7dd3fc" opacity=".22">{!calm && <animate attributeName="r" values="36;46;36" dur="3s" repeatCount="indefinite" />}</circle>
             <g transform={`scale(${sx},${sy})`}>
-              <path d="M-30 12 Q-44 -6 -26 -26 Q-6 -46 22 -36 Q46 -26 44 -2 Q46 22 22 30 Q-6 40 -30 12 Z" fill="#f3d79a" stroke="#fff8" strokeWidth="2.5" filter="url(#tileShadow)" />
+              <path d="M-30 12 Q-44 -6 -26 -26 Q-6 -46 22 -36 Q46 -26 44 -2 Q46 22 22 30 Q-6 40 -30 12 Z" fill="#f3d79a" stroke="#fff8" strokeWidth="2.5" filter={F("tileShadow")} />
               <path d="M-14 -4 Q-20 -22 2 -28 Q28 -30 32 -10 Q30 8 10 10 Q-8 14 -14 -4 Z" fill="#4cb860" />
               <path d="M-4 -12 Q4 -22 18 -16" stroke="#2f8a44" strokeWidth="3" fill="none" />
             </g>
@@ -409,16 +415,16 @@ export function Board(p: BoardProps) {
         const c = toPixel(k);
         return (
           <g key={`v${k}`} transform={`translate(${c.x},${c.y})`} pointerEvents="none">
-            <polygon points={HP} transform="translate(7,9)" fill="#002338" opacity=".45" filter="url(#blur5)" />
+            {!lowFx && <polygon points={HP} transform="translate(7,9)" fill="#002338" opacity=".45" filter={F("blur5")} />}
             {FACETS.map(([fa, fb, dark]) => <g key={fa}><polygon points={facet(fa, fb, 18)} transform="translate(0,-18)" fill="#3a1d10" /><polygon points={facet(fa, fb, 18)} transform="translate(0,-18)" fill="#000" opacity={dark} /></g>)}
-            <polyline points={rim(0)} fill="none" stroke="#ff6a1f" strokeWidth="1.5" opacity=".6">{!reduced && <animate attributeName="opacity" values=".2;.8;.2" dur="1.6s" repeatCount="indefinite" />}</polyline>
+            <polyline points={rim(0)} fill="none" stroke="#ff6a1f" strokeWidth="1.5" opacity=".6">{!calm && <animate attributeName="opacity" values=".2;.8;.2" dur="1.6s" repeatCount="indefinite" />}</polyline>
             <g transform="translate(0,-18)">
             <polygon points={HP} fill="#3b1d12" stroke="#7f1d1d" strokeWidth="2" />
             <polygon points={HP} fill="url(#topLight)" />
             <path d="M-26 16 L-8 -14 L8 -14 L26 16 Z" fill="#57291a" stroke="#1c0a05" strokeWidth="1.5" />
-            <ellipse cx="0" cy="-14" rx="9" ry="3.5" fill="url(#lava)">{!reduced && <animate attributeName="rx" values="8;10;8" dur="1s" repeatCount="indefinite" />}</ellipse>
-            <path d="M-2 -13 Q-6 0 -12 14 M3 -13 Q4 2 10 14" stroke="#f97316" strokeWidth="2.5" fill="none" opacity=".9">{!reduced && <animate attributeName="opacity" values=".5;1;.5" dur="1.4s" repeatCount="indefinite" />}</path>
-            {!reduced && [0, 1, 2].map(i => <circle key={i} cx={(i - 1) * 5} cy="-20" r="4" fill="#57534e" opacity=".6"><animate attributeName="cy" values="-18;-44" dur="2.4s" begin={`${i * 0.8}s`} repeatCount="indefinite" /><animate attributeName="opacity" values=".7;0" dur="2.4s" begin={`${i * 0.8}s`} repeatCount="indefinite" /><animate attributeName="r" values="3;9" dur="2.4s" begin={`${i * 0.8}s`} repeatCount="indefinite" /></circle>)}
+            <ellipse cx="0" cy="-14" rx="9" ry="3.5" fill="url(#lava)">{!calm && <animate attributeName="rx" values="8;10;8" dur="1s" repeatCount="indefinite" />}</ellipse>
+            <path d="M-2 -13 Q-6 0 -12 14 M3 -13 Q4 2 10 14" stroke="#f97316" strokeWidth="2.5" fill="none" opacity=".9">{!calm && <animate attributeName="opacity" values=".5;1;.5" dur="1.4s" repeatCount="indefinite" />}</path>
+            {!calm && [0, 1, 2].map(i => <circle key={i} cx={(i - 1) * 5} cy="-20" r="4" fill="#57534e" opacity=".6"><animate attributeName="cy" values="-18;-44" dur="2.4s" begin={`${i * 0.8}s`} repeatCount="indefinite" /><animate attributeName="opacity" values=".7;0" dur="2.4s" begin={`${i * 0.8}s`} repeatCount="indefinite" /><animate attributeName="r" values="3;9" dur="2.4s" begin={`${i * 0.8}s`} repeatCount="indefinite" /></circle>)}
             </g>
           </g>
         );
@@ -444,8 +450,8 @@ export function Board(p: BoardProps) {
         const lift = liftOf(g, k);
         return (
           <g key={`t${k}`} className="hex-target" transform={`translate(${c.x},${c.y - lift})`} onClick={click(() => p.onHex(k))} style={{ cursor: 'pointer' }}>
-            <polygon points={HP_IN} fill={toneColor} fillOpacity=".22" stroke={toneColor} strokeWidth="3.5" strokeLinejoin="round" filter="url(#glow)">
-              {!reduced && <animate attributeName="fill-opacity" values=".1;.34;.1" dur="1.4s" repeatCount="indefinite" />}
+            <polygon points={HP_IN} fill={toneColor} fillOpacity=".22" stroke={toneColor} strokeWidth="3.5" strokeLinejoin="round" filter={F("glow")}>
+              {!calm && <animate attributeName="fill-opacity" values=".1;.34;.1" dur="1.4s" repeatCount="indefinite" />}
             </polygon>
             <polygon points={HP_SCALE(0.78)} fill="none" stroke="#fff" strokeOpacity=".5" strokeWidth="1.2" strokeDasharray="5 6" />
             <g className={reduced ? '' : 'anim-hover'}>
@@ -475,7 +481,7 @@ export function Board(p: BoardProps) {
           <motion.g key={e.id} initial={{ x: pos.x, y: pos.y - 30, opacity: 0 }} animate={{ x: pos.x, y: pos.y, opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: reduced ? 0 : 0.55, ease: 'easeInOut' }}
             onClick={click(() => p.onPiece('explorer', e.id))} style={{ cursor: own ? 'pointer' : 'default' }}>
-            {e.status === 'swimming' && <ellipse cx="0" cy="8" rx="11" ry="3.5" fill="none" stroke="#e0f7fa" strokeWidth="1.5"><animate attributeName="rx" values="9;13;9" dur="1.6s" repeatCount="indefinite" /></ellipse>}
+            {e.status === 'swimming' && <ellipse cx="0" cy="8" rx="11" ry="3.5" fill="none" stroke="#e0f7fa" strokeWidth="1.5">{!calm && <animate attributeName="rx" values="9;13;9" dur="1.6s" repeatCount="indefinite" />}</ellipse>}
             <g className={e.status === 'swimming' ? 'anim-bob' : e.status === 'boat' ? 'anim-bob-slow' : ''} transform={e.status === 'swimming' ? 'translate(0,3) scale(.9)' : ''}>
               <ExplorerPawn color={colors[e.owner] ?? '#fff'} value={e.value} own={own} selected={selected?.kind === 'explorer' && selected.id === e.id} />
             </g>

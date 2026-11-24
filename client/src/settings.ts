@@ -2,12 +2,12 @@ import { useSyncExternalStore } from 'react';
 
 export interface Settings {
   music: number; sfx: number; ambient: number; muted: boolean;
-  reducedMotion: boolean; lowFx: boolean; cinematic: boolean; weather: 'clear' | 'rain' | 'storm';
+  reducedMotion: boolean; lowFx: boolean; fxChecked: boolean; cinematic: boolean; weather: 'clear' | 'rain' | 'storm';
 }
 const defaults: Settings = {
   music: 0.5, sfx: 0.8, ambient: 0.6, muted: false,
   reducedMotion: typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches,
-  lowFx: false, cinematic: true, weather: 'clear',
+  lowFx: false, fxChecked: false, cinematic: true, weather: 'clear',
 };
 let s: Settings = defaults;
 try { s = { ...defaults, ...JSON.parse(localStorage.getItem('sti-settings') || '{}') }; } catch { /* storage unavailable */ }

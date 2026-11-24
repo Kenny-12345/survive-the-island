@@ -38,6 +38,7 @@ function GameView() {
   const colors = useMemo(() => Object.fromEntries(Object.values(g.players).map(p => [p.id, p.color])), [g.players]);
   const myTurn = currentPlayer(g) === me && g.phase !== 'ended';
   const [selected, setSelected] = useState<Sel>(null);
+  const boardedFrom = useRef<string | null>(null); // selected adventurer's status before the latest update
   const [ability, setAbility] = useState<AbilityMode>(null);
   const [placeValue, setPlaceValue] = useState<number | null>(null);
   const [fx, setFx] = useState<Fx[]>([]);
@@ -70,6 +71,21 @@ function GameView() {
     if (sfx) play(sfx);
     setTimeout(() => setBanners(a => a.filter(x => x !== b)), 2200);
   }, []);
+  // First game on this device: sample the frame rate for a few seconds and switch to low visual effects
+  // if the board can't keep up (old laptops / school computers). Runs once; the player can undo it in Settings.
+  useEffect(() => {
+    if (settings.lowFx || settings.fxChecked) return;
+    let frames = 0, raf = 0, start = 0;
+    const tick = (t: number) => { if (!start) start = t; frames++; if (t - start < 4000) raf = requestAnimationFrame(tick); else done(t - start); };
+    const done = (ms: number) => {
+      if (document.hidden) return; // background tabs are throttled; try again next game
+      const fps = (frames / ms) * 1000;
+      setSettings({ fxChecked: true, ...(fps < 40 ? { lowFx: true } : {}) });
+      if (fps < 40) banner('Low effects on for smoother play', '⚡', '#0ea5e9');
+    };
+    const t = setTimeout(() => { raf = requestAnimationFrame(tick); }, 1500); // skip the opening animations
+    return () => { clearTimeout(t); cancelAnimationFrame(raf); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const focus = useCallback((hex: string) => {
     if (!settings.cinematic || reduced) return;
     const p = toPixel(hex);
@@ -187,6 +203,13 @@ function GameView() {
     } else if (selected?.kind === 'creature') setSelected(null);
     if (selected?.kind === 'explorer' && !g.explorers.some(e => e.id === selected.id && ['land', 'boat', 'swimming'].includes(e.status))) setSelected(null);
     if (selected?.kind === 'boat' && !g.boats.some(b => b.id === selected.id)) setSelected(null);
+    // Just climbed aboard? Hand the selection to the raft so the next tap sails it instead of
+    // stepping the adventurer straight back off. Only when this player may steer that raft.
+    if (selected?.kind === 'explorer' && g.phase === 'action' && myTurn) {
+      const e = g.explorers.find(x => x.id === selected.id);
+      if (e?.status === 'boat' && boardedFrom.current !== 'boat' && e.boat && boatTargets(g, me, e.boat).length) setSelected({ kind: 'boat', id: e.boat });
+    }
+    boardedFrom.current = selected?.kind === 'explorer' ? g.explorers.find(x => x.id === selected.id)?.status ?? null : null;
     if (ability && (!myTurn || g.phase !== 'action' || !(g.hands[me] ?? []).some(t => t.id === ability.tile))) setAbility(null);
   }, [g.seq]); // eslint-disable-line react-hooks/exhaustive-deps
   const myLeft = g.toPlace[me] ?? [];

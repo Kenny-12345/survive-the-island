@@ -1,6 +1,5 @@
 {
   "name": "Survive The Island server",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
   "containerEnv": {
     "PORT": "3001",
     "CORS_ORIGINS": "https://survive-the-island-rho.vercel.app"
@@ -15,11 +14,15 @@
     }
   },
   "postCreateCommand": "npm ci --no-audit --no-fund",
-  "postStartCommand": "setsid bash scripts/codespace-start.sh < /dev/null > /tmp/start.log 2>&1 &",
+  "postStartCommand": "bash scripts/codespace-start.sh > /tmp/start.log 2>&1",
   "features": {
     "ghcr.io/devcontainers/features/sshd:1": {
       "version": "latest"
     },
     "ghcr.io/devcontainers/features/github-cli:1": {}
-  }
+  },
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "overrideCommand": false
 }

@@ -24,7 +24,19 @@ export function Loading({ connected, ready, onDone }: { connected: boolean; read
   const steps = [fonts, connected, ready];
   const done = steps.filter(Boolean).length;
   const pct = Math.round((done / steps.length) * 100);
-  const label = !fonts ? 'Unpacking the box…' : !connected ? 'Rowing to the server…' : !ready ? 'Finding your crew…' : 'Land ho!';
+  // Hosted server sleeps when nobody plays. If it doesn't answer quickly, ask the site's wake function to
+  // start it (keeps asking every 15s until the socket connects; socket.io keeps retrying on its own).
+  const [waking, setWaking] = useState(false);
+  const [wakeSecs, setWakeSecs] = useState(0);
+  useEffect(() => {
+    if (connected) return;
+    const poke = () => fetch('/api/wake', { method: 'POST' }).then(r => (r.ok ? setWaking(true) : null)).catch(() => {});
+    const first = setTimeout(poke, 2500);
+    const again = setInterval(poke, 15000);
+    const clock = setInterval(() => setWakeSecs(x => x + 1), 1000);
+    return () => { clearTimeout(first); clearInterval(again); clearInterval(clock); };
+  }, [connected]);
+  const label = !fonts ? 'Unpacking the box…' : !connected ? (waking ? `Waking the island server… ${wakeSecs}s (up to a minute)` : 'Rowing to the server…') : !ready ? 'Finding your crew…' : 'Land ho!';
   useEffect(() => { if (done === steps.length && minShown) { const t = setTimeout(onDone, 350); return () => clearTimeout(t); } }, [done, minShown]); // eslint-disable-line
 
   return (

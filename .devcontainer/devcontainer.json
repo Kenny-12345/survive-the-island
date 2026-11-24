@@ -15,10 +15,11 @@
     }
   },
   "postCreateCommand": "npm ci --no-audit --no-fund",
-  "postStartCommand": "setsid nohup npm start > /tmp/server.log 2>&1 < /dev/null &",
+  "postStartCommand": "setsid bash scripts/codespace-start.sh < /dev/null > /tmp/start.log 2>&1 &",
   "features": {
     "ghcr.io/devcontainers/features/sshd:1": {
       "version": "latest"
-    }
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   }
 }
